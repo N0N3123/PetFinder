@@ -1,0 +1,33 @@
+
+body {
+  padding-top: 56px;
+  background-color: #f8f9fa;
+}
+
+.main-content {
+  min-height: calc(100vh - 56px);
+}
+
+.form-page {
+  padding: 2rem 1rem;
+}
+
+.auth-card {
+  max-width: 450px;
+  margin: 0 auto;
+}
+
+.map-placeholder {
+  height: calc(100vh - 56px);
+  background-color: #e8f5e9;
+}
+
+@media (max-width: 576px) {
+  .auth-card {
+    margin: 0;
+  }
+
+  .form-page {
+    padding: 1rem 0.5rem;
+  }
+}
