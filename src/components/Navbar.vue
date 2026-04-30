@@ -22,12 +22,22 @@
           <li class="nav-item">
             <router-link class="nav-link" to="/">Mapa</router-link>
           </li>
-          <li class="nav-item">
-            <router-link class="nav-link" to="/login">Zaloguj się</router-link>
-          </li>
-          <li class="nav-item">
-            <router-link class="nav-link" to="/register">Zarejestruj się</router-link>
-          </li>
+          <template v-if="user">
+            <li class="nav-item">
+              <router-link class="nav-link" to="/profile">Profil</router-link>
+            </li>
+            <li class="nav-item">
+              <button class="btn btn-link nav-link" @click="logout">Wyloguj</button>
+            </li>
+          </template>
+          <template v-else>
+            <li class="nav-item">
+              <router-link class="nav-link" to="/login">Zaloguj się</router-link>
+            </li>
+            <li class="nav-item">
+              <router-link class="nav-link" to="/register">Zarejestruj się</router-link>
+            </li>
+          </template>
         </ul>
       </div>
 
@@ -36,4 +46,7 @@
 </template>
 
 <script setup>
+import { useAuth } from '../composables/useAuth'
+
+const { user, logout } = useAuth()
 </script>

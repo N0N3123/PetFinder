@@ -53,8 +53,9 @@
               autocomplete="new-password"
             />
           </div>
-          <button type="submit" class="btn btn-success w-100 mb-3">
-            Zarejestruj się
+          <div v-if="error" class="alert alert-danger py-2">{{ error }}</div>
+          <button type="submit" class="btn btn-success w-100 mb-3" :disabled="loading">
+            {{ loading ? 'Rejestracja...' : 'Zarejestruj się' }}
           </button>
         </form>
 
@@ -69,17 +70,23 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuth } from '../composables/useAuth'
+
+const router = useRouter()
+const { register, error, loading } = useAuth()
 
 const displayName = ref('')
 const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 
-const handleRegister = () => {
+const handleRegister = async () => {
   if (password.value !== confirmPassword.value) {
     alert('Hasła nie są takie same.')
     return
   }
-  console.log('Register:', email.value)
+  await register(email.value, password.value, displayName.value)
+  if (!error.value) router.push('/')
 }
 </script>
