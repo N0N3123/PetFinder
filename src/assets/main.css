@@ -17,9 +17,28 @@ body {
   margin: 0 auto;
 }
 
-.map-placeholder {
+#map {
   height: calc(100vh - 56px);
-  background-color: #e8f5e9;
+  width: 100%;
+}
+
+.map-wrapper {
+  position: relative;
+}
+
+.map-controls {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  background: white;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
 }
 
 @media (max-width: 576px) {
