@@ -3,19 +3,29 @@
     <div class="map-controls">
       <div class="btn-group">
         <button
-          class="btn btn-sm"
+          class="btn btn-md"
           :class="filter === 'lost' ? 'btn-danger' : 'btn-outline-danger'"
           @click="filter = 'lost'"
         >Zaginione 🔴</button>
         <button
-          class="btn btn-sm"
+          class="btn btn-md"
           :class="filter === 'adoption' ? 'btn-success' : 'btn-outline-success'"
           @click="filter = 'adoption'"
         >Do adopcji 🟢</button>
       </div>
-      <button class="btn btn-sm btn-light ms-2" @click="centerOnUser" title="Moja lokalizacja">📍</button>
+      <button class="btn btn-md btn-light ms-2" @click="centerOnUser" title="Moja lokalizacja">📍</button>
     </div>
+    
     <div id="map"></div>
+
+    <!-- FAB -->
+    <router-link 
+      v-if="user" 
+      to="/create" 
+      class="btn btn-success rounded-circle shadow d-flex align-items-center justify-content-center fab-button"
+    >
+      <span>+</span>
+    </router-link>
   </div>
 </template>
 
@@ -23,15 +33,17 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import L from 'leaflet'
 import { useAnnouncements } from '../composables/useAnnouncements'
+import { useAuth } from '../composables/useAuth'
 
 const filter = ref('lost')
 const { announcements, unsub } = useAnnouncements()
-
+const { user } = useAuth()
 let map = null
 let markersLayer = null
 
 onMounted(() => {
-  map = L.map('map').setView([52.0, 19.0], 6)
+  map = L.map('map', { zoomControl: false }).setView([52.0, 19.0], 6)
+  L.control.zoom({ position: 'bottomleft' }).addTo(map)
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors'
@@ -91,3 +103,45 @@ const centerOnUser = () => {
   )
 }
 </script>
+
+<style scoped>
+/* Domyślny wygląd (telefony) */
+.fab-button {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 60px;
+  height: 60px;
+  font-size: 2.5rem;
+  z-index: 1050;
+  text-decoration: none;
+}
+
+.fab-button span {
+  position: relative;
+  top: -3px;
+}
+
+@media (max-width: 576px) {
+  .map-controls {
+    padding: 0.3rem !important;
+  }
+  .map-controls .btn {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .fab-button {
+    bottom: 40px;
+    right: 40px;
+    width: 80px;
+    height: 80px;
+    font-size: 3.5rem;
+  }
+  .fab-button span {
+    top: -5px;
+  }
+}
+</style>
