@@ -20,7 +20,11 @@ const routes = [
     component: () => import('../views/RegisterView.vue'),
     meta: { guestOnly: true }
   },
-  // --- CHRONIONE ---
+  {
+    path: '/announcement/:id',
+    name: 'AnnouncementDetail',
+    component: () => import('../views/AnnouncementDetailView.vue')
+  },
   {
     path: '/create',
     name: 'Create',
@@ -48,16 +52,8 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const loggedIn = !!auth.currentUser
-  
-  // Jeśli trasa wymaga logowania, a user nie jest zalogowany -> na stronę logowania
-  if (to.meta.requiresAuth && !loggedIn) {
-    return '/login'
-  }
-  
-  // Jeśli trasa jest tylko dla gości (np. /login), a user jest zalogowany -> na stronę główną
-  if (to.meta.guestOnly && loggedIn) {
-    return '/'
-  }
+  if (to.meta.requiresAuth && !loggedIn) return '/login'
+  if (to.meta.guestOnly && loggedIn) return '/'
 })
 
 export default router

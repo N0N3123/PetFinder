@@ -31,6 +31,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import L from 'leaflet'
 import { useAnnouncements } from '../composables/useAnnouncements'
 import { useAuth } from '../composables/useAuth'
@@ -38,6 +39,7 @@ import { useAuth } from '../composables/useAuth'
 const filter = ref('lost')
 const { announcements, unsub } = useAnnouncements()
 const { user } = useAuth()
+const router = useRouter()
 let map = null
 let markersLayer = null
 
@@ -50,6 +52,32 @@ onMounted(() => {
   }).addTo(map)
 
   markersLayer = L.layerGroup().addTo(map)
+
+  map.on('popupopen', (event) => {
+    const button = event.popup.getElement()?.querySelector('.add-announcement-btn')
+    if (!button) return
+
+    L.DomEvent.disableClickPropagation(button)
+    L.DomEvent.on(button, 'click', (clickEvent) => {
+      L.DomEvent.stop(clickEvent)
+      map.closePopup()
+      router.push(`/create?lat=${button.dataset.lat}&lng=${button.dataset.lng}`)
+    })
+  })
+
+  map.on('click', (e) => {
+    if (!user.value) return
+    const { lat, lng } = e.latlng
+    L.popup()
+      .setLatLng(e.latlng)
+      .setContent(`
+        <div style="text-align:center;padding:4px 2px">
+          <div style="margin-bottom:8px;font-size:0.85rem;color:#666">${lat.toFixed(4)}, ${lng.toFixed(4)}</div>
+          <button class="add-announcement-btn" data-lat="${lat}" data-lng="${lng}" style="background:#198754;color:white;padding:6px 14px;border-radius:6px;border:none;font-size:0.9rem;cursor:pointer">+ Dodaj ogłoszenie</button>
+        </div>
+      `)
+      .openOn(map)
+  })
 
   watch([announcements, filter], updateMarkers, { immediate: true })
 })
@@ -84,21 +112,29 @@ const updateMarkers = () => {
 
     marker.on('click', () => {
       navigator.vibrate?.(50)
-      marker.bindPopup(`
-        <strong>${a.petName}</strong><br>
-        ${a.petType}${a.breed ? ' · ' + a.breed : ''}<br>
-        <small>${a.address || ''}</small>
-      `).openPopup()
+      router.push(`/announcement/${a.id}`)
     })
 
     markersLayer.addLayer(marker)
   })
 }
 
+let userMarker = null
+
 const centerOnUser = () => {
   if (!navigator.geolocation) return
   navigator.geolocation.getCurrentPosition(
-    ({ coords }) => map.setView([coords.latitude, coords.longitude], 13),
+    ({ coords }) => {
+      map.setView([coords.latitude, coords.longitude], 13)
+      if (userMarker) userMarker.remove()
+      const icon = L.divIcon({
+        html: `<div style="width:20px;height:20px;border-radius:50%;background:#0d6efd;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>`,
+        className: '',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+      })
+      userMarker = L.marker([coords.latitude, coords.longitude], { icon }).addTo(map)
+    },
     () => alert('Nie można uzyskać lokalizacji.')
   )
 }

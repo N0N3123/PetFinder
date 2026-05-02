@@ -16,31 +16,32 @@
             </div>
           </div>
 
-          <!-- Podstawowe dane -->
           <div class="mb-3">
             <label class="form-label">Imię zwierzaka</label>
-            <input type="text" class="form-control" v-model="form.petName" required placeholder="np. Burek">
+            <input type="text" class="form-control" v-model="form.petName" required>
           </div>
 
           <div class="row">
             <div class="col-6 mb-3">
               <label class="form-label">Gatunek</label>
-              <input type="text" class="form-control" v-model="form.petType" required placeholder="np. Pies">
+              <input type="text" class="form-control" v-model="form.petType" required>
             </div>
             <div class="col-6 mb-3">
               <label class="form-label">Rasa</label>
-              <input type="text" class="form-control" v-model="form.breed" placeholder="np. Kundelek">
+              <input type="text" class="form-control" v-model="form.breed">
             </div>
           </div>
 
-          <!-- Aparat / Zdjęcie -->
           <div class="mb-3">
-            <label class="form-label">Zdjęcie zwierzaka (Aparat)</label>
-            <!--capture="environment" wymusza otwarcie tylnego aparatu na telefonie -->
+            <label class="form-label">Zdjęcie zwierzaka</label>
             <input type="file" class="form-control" accept="image/*" capture="environment" @change="handleFile" required>
           </div>
 
-          <!-- GPS -->
+          <div class="mb-3">
+            <label class="form-label">Opis (opcjonalnie)</label>
+            <textarea class="form-control" v-model="form.description" rows="3"></textarea>
+          </div>
+
           <div class="mb-4">
             <label class="form-label">Lokalizacja</label>
             <div class="input-group">
@@ -67,14 +68,15 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { db, storage } from '../firebase/config'
 import { useAuth } from '../composables/useAuth'
 
 const router = useRouter()
+const route = useRoute()
 const { user } = useAuth()
 
 const loading = ref(false)
@@ -87,16 +89,32 @@ const form = reactive({
   petName: '',
   petType: '',
   breed: '',
+  description: '',
   address: '',
   location: null
 })
 
-// 1. Obsługa pliku ze zdjęcia/aparatu
+onMounted(async () => {
+  const lat = parseFloat(route.query.lat)
+  const lng = parseFloat(route.query.lng)
+  if (!isNaN(lat) && !isNaN(lng)) {
+    form.location = { latitude: lat, longitude: lng }
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`, { headers: { 'Accept-Language': 'pl' } })
+      const data = await res.json()
+      const a = data.address
+      form.address = a.city || a.town || a.village || a.county || ''
+      if (a.road) form.address = a.road + ', ' + form.address
+    } catch {
+      form.address = `${lat.toFixed(4)}, ${lng.toFixed(4)}`
+    }
+  }
+})
+
 const handleFile = (event) => {
   imageFile.value = event.target.files[0]
 }
 
-// 2. Pobieranie geolokalizacji z GPS urządzenia
 const getLocation = () => {
   if (!navigator.geolocation) {
     error.value = 'Twoja przeglądarka nie obsługuje geolokalizacji.'
@@ -105,21 +123,32 @@ const getLocation = () => {
   
   gettingLocation.value = true
   navigator.geolocation.getCurrentPosition(
-    (position) => {
+    async (position) => {
       form.location = {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude
       }
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${position.coords.latitude}&lon=${position.coords.longitude}&format=json&accept-language=pl`,
+          { headers: { 'Accept-Language': 'pl' } }
+        )
+        const data = await res.json()
+        const a = data.address
+        form.address = a.city || a.town || a.village || a.county || ''
+        if (a.road) form.address = a.road + ', ' + form.address
+      } catch {
+        form.address = `${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`
+      }
       gettingLocation.value = false
     },
-    (err) => {
+    () => {
       error.value = 'Nie udało się pobrać lokalizacji GPS. Wpisz adres ręcznie.'
       gettingLocation.value = false
     }
   )
 }
 
-// 3. Wysyłanie formularza (Storage + Firestore)
 const handleSubmit = async () => {
   if (!imageFile.value) {
     error.value = 'Proszę dodać zdjęcie.'
@@ -134,7 +163,6 @@ const handleSubmit = async () => {
   error.value = null
 
   try {
-    // A) Upload zdjęcia do Firebase Storage
     const fileExtension = imageFile.value.name.split('.').pop()
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExtension}`
     const imgRef = storageRef(storage, `pets/${fileName}`)
@@ -142,14 +170,14 @@ const handleSubmit = async () => {
     await uploadBytes(imgRef, imageFile.value)
     const imageUrl = await getDownloadURL(imgRef)
 
-    // B) Zapis ogłoszenia w Firestore
     await addDoc(collection(db, 'announcements'), {
       type: form.type,
       petName: form.petName,
       petType: form.petType,
       breed: form.breed,
+      description: form.description,
       address: form.address,
-      location: form.location, // { latitude, longitude }
+      location: form.location,
       imageUrls: [imageUrl],
       userId: user.value.uid,
       createdAt: serverTimestamp(),
