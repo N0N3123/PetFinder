@@ -1,1 +1,0 @@
-if('serviceWorker' in navigator) navigator.serviceWorker.register('/PetFinder/dev-sw.js?dev-sw', { scope: '/PetFinder/', type: 'classic' })
