@@ -57,10 +57,15 @@
 
           <div v-if="error" class="alert alert-danger">{{ error }}</div>
 
-          <button type="submit" class="btn btn-success w-100" :disabled="loading">
-            <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
-            {{ loading ? 'Wysyłanie ogłoszenia...' : 'Opublikuj ogłoszenie' }}
-          </button>
+          <div class="d-flex gap-2 mt-4">
+            <button type="button" class="btn btn-outline-secondary w-50" @click="router.push('/')">
+              Anuluj
+            </button>
+            <button type="submit" class="btn btn-success w-50" :disabled="loading">
+              <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
+              {{ loading ? 'Wysyłanie...' : 'Opublikuj' }}
+            </button>
+          </div>
         </form>
       </div>
     </div>

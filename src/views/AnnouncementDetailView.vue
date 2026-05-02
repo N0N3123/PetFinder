@@ -2,7 +2,9 @@
   <div class="container form-page">
     <div class="card auth-card shadow">
       <div v-if="announcement" class="card-body p-4">
-        <button class="btn btn-link ps-0 mb-3" @click="$router.back()">← Wróć</button>
+        <button class="btn btn-outline-secondary btn-sm mb-3 shadow-sm" @click="$router.push('/')">
+  ← Wróć do mapy
+</button>
 
         <div v-if="announcement.imageUrls?.[0]" class="mb-3">
           <img :src="announcement.imageUrls[0]" class="w-100 rounded" style="max-height:300px;object-fit:cover;" />

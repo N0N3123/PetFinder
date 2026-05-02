@@ -1,30 +1,68 @@
 <template>
-  <div class="map-wrapper">
-    <div class="map-controls">
-      <div class="btn-group">
-        <button
-          class="btn btn-md"
-          :class="filter === 'lost' ? 'btn-danger' : 'btn-outline-danger'"
-          @click="filter = 'lost'"
-        >Zaginione 🔴</button>
-        <button
-          class="btn btn-md"
-          :class="filter === 'adoption' ? 'btn-success' : 'btn-outline-success'"
-          @click="filter = 'adoption'"
-        >Do adopcji 🟢</button>
+  <div class="position-relative w-100" style="height: calc(100vh - 56px);">
+    
+    <!-- kontener na opcje -->
+    <div class="position-absolute top-0 start-50 translate-middle-x mt-2 mt-md-3 d-flex flex-column gap-2 bg-white p-2 p-md-3 rounded-4 shadow" style="width: 95%; max-width: 500px; z-index: 1000;">
+      
+      <!-- opcje -->
+      <div class="d-flex gap-2 justify-content-center">
+        <div class="btn-group shadow-sm w-100">
+          <button
+            class="btn btn-sm"
+            :class="filter === 'lost' ? 'btn-danger' : 'btn-outline-danger'"
+            @click="filter = 'lost'"
+          >Zaginione 🔴</button>
+          <button
+            class="btn btn-sm"
+            :class="filter === 'adoption' ? 'btn-success' : 'btn-outline-success'"
+            @click="filter = 'adoption'"
+          >Do adopcji 🟢</button>
+        </div>
+        <!-- findme -->
+        <button class="btn btn-light shadow-sm px-3" @click="centerOnUser" title="Moja lokalizacja">📍</button>
+        <!-- filtry -->
+        <button class="btn btn-primary shadow-sm px-3" @click="showFilters = !showFilters" title="Filtry">🔍</button>
       </div>
-      <button class="btn btn-md btn-light ms-2" @click="centerOnUser" title="Moja lokalizacja">📍</button>
+
+      <!-- rozwijane filtry -->
+      <div v-if="showFilters" class="mt-1">
+        <div class="mb-2">
+          <input 
+            v-model="searchQuery" 
+            type="text" 
+            class="form-control form-control-sm" 
+            placeholder="Szukaj (imię, rasa, opis...)"
+          >
+        </div>
+        <div>
+          <label class="form-label mb-1 text-muted small">Promień od Twojej lokalizacji:</label>
+          <select v-model="radius" class="form-select form-select-sm" @change="handleRadiusChange">
+            <option value="0">Bez ograniczeń</option>
+            <option value="5">Do 5 km</option>
+            <option value="15">Do 15 km</option>
+            <option value="25">Do 25 km</option>
+            <option value="50">Do 50 km</option>
+            <option value="100">Do 100 km</option>
+            <option value="200">Do 200 km</option>
+          </select>
+          <small v-if="radius > 0 && !myLocation" class="text-danger d-block mt-1">
+            Kliknij 📍 aby pobrać lokalizację.
+          </small>
+        </div>
+      </div>
     </div>
     
-    <div id="map"></div>
+    <!-- Mapa Leaflet -->
+    <div id="map" class="w-100 h-100"></div>
 
     <!-- FAB -->
     <router-link 
       v-if="user" 
       to="/create" 
-      class="btn btn-success rounded-circle shadow d-flex align-items-center justify-content-center fab-button"
+      class="btn btn-success position-fixed bottom-0 end-0 m-3 m-md-4 rounded-circle shadow-lg d-flex align-items-center justify-content-center text-decoration-none"
+      style="width: 65px; height: 65px; font-size: 2.5rem; line-height: 1; z-index: 1050;"
     >
-      <span>+</span>
+      <span style="position: relative; top: -3px;">+</span>
     </router-link>
   </div>
 </template>
@@ -37,11 +75,18 @@ import { useAnnouncements } from '../composables/useAnnouncements'
 import { useAuth } from '../composables/useAuth'
 
 const filter = ref('lost')
+const showFilters = ref(false)
+const searchQuery = ref('')
+const radius = ref('0')
+const myLocation = ref(null)
+
 const { announcements, unsub } = useAnnouncements()
 const { user } = useAuth()
 const router = useRouter()
+
 let map = null
 let markersLayer = null
+let userMarker = null
 
 onMounted(() => {
   map = L.map('map', { zoomControl: false }).setView([52.0, 19.0], 6)
@@ -79,7 +124,7 @@ onMounted(() => {
       .openOn(map)
   })
 
-  watch([announcements, filter], updateMarkers, { immediate: true })
+  watch([announcements, filter, searchQuery, radius, myLocation], updateMarkers, { immediate: true })
 })
 
 onUnmounted(() => {
@@ -88,11 +133,38 @@ onUnmounted(() => {
 })
 
 const updateMarkers = () => {
+  if (!markersLayer || !map) return
   markersLayer.clearLayers()
 
-  const filtered = announcements.value.filter(
-    a => a.type === filter.value && !a.isResolved
-  )
+  const query = searchQuery.value.toLowerCase().trim()
+  const radiusValue = parseInt(radius.value)
+
+  const filtered = announcements.value.filter(a => {
+    if (a.type !== filter.value || a.isResolved) return false
+
+    if (query) {
+      const name = (a.petName || '').toLowerCase()
+      const type = (a.petType || '').toLowerCase()
+      const breed = (a.breed || '').toLowerCase()
+      const desc = (a.description || '').toLowerCase()
+      
+      if (!name.includes(query) && !type.includes(query) && !breed.includes(query) && !desc.includes(query)) {
+        return false
+      }
+    }
+
+    if (radiusValue > 0 && myLocation.value && a.location) {
+      const distInMeters = map.distance(
+        [myLocation.value.lat, myLocation.value.lng],
+        [a.location.latitude, a.location.longitude]
+      )
+      if (distInMeters > radiusValue * 1000) {
+        return false
+      }
+    }
+
+    return true
+  })
 
   filtered.forEach(a => {
     if (!a.location) return
@@ -101,7 +173,7 @@ const updateMarkers = () => {
     const photo = a.imageUrls?.[0]
 
     const iconHtml = photo
-      ? `<div style="width:48px;height:48px;border-radius:50%;border:3px solid ${color};overflow:hidden;">
+      ? `<div style="width:48px;height:48px;border-radius:50%;border:3px solid ${color};overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.3);">
            <img src="${photo}" style="width:100%;height:100%;object-fit:cover;" />
          </div>`
       : `<div style="width:48px;height:48px;border-radius:50%;background:${color};border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>`
@@ -119,13 +191,13 @@ const updateMarkers = () => {
   })
 }
 
-let userMarker = null
-
 const centerOnUser = () => {
   if (!navigator.geolocation) return
   navigator.geolocation.getCurrentPosition(
     ({ coords }) => {
+      myLocation.value = { lat: coords.latitude, lng: coords.longitude }
       map.setView([coords.latitude, coords.longitude], 13)
+      
       if (userMarker) userMarker.remove()
       const icon = L.divIcon({
         html: `<div style="width:20px;height:20px;border-radius:50%;background:#0d6efd;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>`,
@@ -138,46 +210,10 @@ const centerOnUser = () => {
     () => alert('Nie można uzyskać lokalizacji.')
   )
 }
+
+const handleRadiusChange = () => {
+  if (parseInt(radius.value) > 0 && !myLocation.value) {
+    centerOnUser()
+  }
+}
 </script>
-
-<style scoped>
-/* Domyślny wygląd (telefony) */
-.fab-button {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  width: 60px;
-  height: 60px;
-  font-size: 2.5rem;
-  z-index: 1050;
-  text-decoration: none;
-}
-
-.fab-button span {
-  position: relative;
-  top: -3px;
-}
-
-@media (max-width: 576px) {
-  .map-controls {
-    padding: 0.3rem !important;
-  }
-  .map-controls .btn {
-    font-size: 0.8rem;
-    padding: 0.25rem 0.5rem;
-  }
-}
-
-@media (min-width: 768px) {
-  .fab-button {
-    bottom: 40px;
-    right: 40px;
-    width: 80px;
-    height: 80px;
-    font-size: 3.5rem;
-  }
-  .fab-button span {
-    top: -5px;
-  }
-}
-</style>
