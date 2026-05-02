@@ -34,7 +34,10 @@
           </router-link>
         </div>
         <div v-else-if="!user">
-          <router-link to="/login" class="btn btn-outline-success w-100">
+          <router-link 
+            :to="{ path: '/login', query: { redirect: `/messages?with=${announcement.userId}&announcement=${announcementId}` } }" 
+            class="btn btn-outline-success w-100"
+          >
             Zaloguj się, aby skontaktować
           </router-link>
         </div>

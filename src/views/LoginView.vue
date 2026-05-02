@@ -59,10 +59,11 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 
 const router = useRouter()
+const route = useRoute()
 const { login, loginWithGoogle, error, loading } = useAuth()
 
 const email = ref('')
@@ -70,11 +71,17 @@ const password = ref('')
 
 const handleLogin = async () => {
   await login(email.value, password.value)
-  if (!error.value) router.push('/')
+  if (!error.value) {
+    const redirectPath = route.query.redirect || '/'
+    router.push(redirectPath)
+  }
 }
 
 const handleGoogle = async () => {
   await loginWithGoogle()
-  if (!error.value) router.push('/')
+  if (!error.value) {
+    const redirectPath = route.query.redirect || '/'
+    router.push(redirectPath)
+  }
 }
 </script>

@@ -26,8 +26,11 @@
             <li class="nav-item">
               <router-link class="nav-link" to="/profile">Profil</router-link>
             </li>
+            <li class="nav-item" v-if="user">
+              <router-link class="nav-link" to="/messages">Wiadomości</router-link>
+            </li>
             <li class="nav-item">
-              <button class="btn btn-link nav-link" @click="logout">Wyloguj</button>
+              <button class="btn btn-link nav-link" @click="handleLogout">Wyloguj</button>
             </li>
           </template>
           <template v-else>
@@ -47,6 +50,13 @@
 
 <script setup>
 import { useAuth } from '../composables/useAuth'
+import { useRouter } from 'vue-router'
 
 const { user, logout } = useAuth()
+const router = useRouter()
+
+const handleLogout = async () => {
+  await logout()
+  router.push('/') 
+}
 </script>

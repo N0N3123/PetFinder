@@ -70,10 +70,11 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 
 const router = useRouter()
+const route = useRoute()
 const { register, error, loading } = useAuth()
 
 const displayName = ref('')
@@ -87,6 +88,9 @@ const handleRegister = async () => {
     return
   }
   await register(email.value, password.value, displayName.value)
-  if (!error.value) router.push('/')
+  if (!error.value) {
+    const redirectPath = route.query.redirect || '/'
+    router.push(redirectPath)
+  }
 }
 </script>
