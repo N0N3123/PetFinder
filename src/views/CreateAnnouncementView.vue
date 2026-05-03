@@ -33,8 +33,23 @@
           </div>
 
           <div class="mb-3">
-            <label class="form-label">Zdjęcie zwierzaka</label>
-            <input type="file" class="form-control" accept="image/*" @change="handleFile" required>
+            <label class="form-label d-block">Zdjęcie zwierzaka</label>
+            <div class="d-flex gap-2">
+              
+              <label for="addGallery" class="btn btn-outline-secondary" :class="isMobile ? 'w-50' : 'w-100'">
+                <span v-if="!isMobile" style="position: relative; top: 1px;">🖼️ Wybierz plik ze zdjęciem</span>
+                <span v-else style="position: relative; top: 1px;">🖼️ Wybierz z galerii</span>
+              </label>
+              <input type="file" id="addGallery" class="d-none" accept="image/*" @change="handleFile">
+
+              <label v-if="isMobile" for="addCamera" class="btn btn-outline-secondary w-50">
+                <span style="position: relative; top: -2px;">📷</span> Zrób zdjęcie
+              </label>
+              <input v-if="isMobile" type="file" id="addCamera" class="d-none" accept="image/*" capture="environment" @change="handleFile">
+            
+            </div>
+            <!-- podglad nazwy wybranego pliku -->
+            <small v-if="imageFile" class="text-success d-block mt-2">Wybrano: {{ imageFile.name }}</small>
           </div>
 
           <div class="mb-3">
@@ -98,6 +113,9 @@ const form = reactive({
   address: '',
   location: null
 })
+
+// czy urządzenie mobilne
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
 onMounted(async () => {
   const lat = parseFloat(route.query.lat)

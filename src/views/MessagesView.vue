@@ -114,12 +114,20 @@
 
       <!-- Pasek wysyłania -->
       <div class="d-flex gap-2 align-items-center">
-        <!-- Przycisk do wysyłania zdjęcia -->
-        <label for="chatImageUpload" class="btn btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center p-0 shadow-sm" style="width: 42px; height: 42px; cursor: pointer; flex-shrink: 0;">
+        
+        <!-- przycisk: galeria / plik -->
+        <label for="chatImageGallery" class="btn btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center p-0 shadow-sm" style="width: 42px; height: 42px; cursor: pointer; flex-shrink: 0;" :title="isMobile ? 'Wybierz z galerii' : 'Wybierz plik'">
+          <span v-if="uploadingImage" class="spinner-border spinner-border-sm text-secondary"></span>
+          <span v-else style="position: relative;">🖼️</span>
+        </label>
+        <input type="file" id="chatImageGallery" class="d-none" accept="image/*" @change="sendImage" :disabled="uploadingImage">
+
+        <!-- przycisk: aparat tylko mobile -->
+        <label v-if="isMobile" for="chatImageCamera" class="btn btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center p-0 shadow-sm" style="width: 42px; height: 42px; cursor: pointer; flex-shrink: 0;" title="Zrób zdjęcie">
           <span v-if="uploadingImage" class="spinner-border spinner-border-sm text-secondary"></span>
           <span v-else style="position: relative; top: -2px;">📷</span>
         </label>
-        <input type="file" id="chatImageUpload" class="d-none" accept="image/*" @change="sendImage" :disabled="uploadingImage">
+        <input v-if="isMobile" type="file" id="chatImageCamera" class="d-none" accept="image/*" capture="environment" @change="sendImage" :disabled="uploadingImage">
 
         <input
           v-model="newMessage"
@@ -143,6 +151,8 @@ import {
   query, where, orderBy, onSnapshot, serverTimestamp
 } from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
+
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
 const route = useRoute()
 const { user } = useAuth()

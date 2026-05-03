@@ -1,7 +1,7 @@
 <template>
   <div class="container mt-5 pt-4 form-page">
     
-    <!-- lightbox -->
+    <!-- lightbox na cale okno -->
     <div 
       v-if="fullscreenImage" 
       class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" 
@@ -17,6 +17,7 @@
         
         <div class="text-center mb-4">
           <div class="position-relative d-inline-block">
+            <!-- Awatar -->
             <img 
               :src="profileData.photoURL || 'https://ui-avatars.com/api/?name=' + (user?.displayName || 'User') + '&background=198754&color=fff'" 
               alt="Profilowe" 
@@ -24,11 +25,22 @@
               style="width: 120px; height: 120px; object-fit: cover; cursor: zoom-in;"
               @click="fullscreenImage = profileData.photoURL || 'https://ui-avatars.com/api/?name=' + (user?.displayName || 'User') + '&background=198754&color=fff'"
             />
-            <!-- Przycisk do zmiany zdjęcia -->
-            <label for="photoUpload" class="position-absolute bottom-0 end-0 bg-success text-white rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; cursor: pointer; transform: translate(10%, 10%);">
+            
+            <!-- Przycisk: Galeria / Plik (na pc po prawej, na mobile po lewej) -->
+            <label for="photoGallery" class="position-absolute bottom-0 bg-success text-white rounded-circle p-2 d-flex align-items-center justify-content-center shadow"
+                   :class="isMobile ? 'start-0' : 'end-0'"
+                   :style="{ width: '38px', height: '38px', cursor: 'pointer', transform: isMobile ? 'translate(-10%, 10%)' : 'translate(10%, 10%)' }"
+                   :title="isMobile ? 'Wybierz z galerii' : 'Zmień zdjęcie'">
+              <span style="position: relative; top: 1px;">🖼️</span>
+            </label>
+            <input type="file" id="photoGallery" class="d-none" accept="image/*" @change="handlePhotoUpload">
+
+            <!-- Przycisk: Aparat (tylko na mobile) -->
+            <label v-if="isMobile" for="photoCamera" class="position-absolute bottom-0 end-0 bg-success text-white rounded-circle p-2 d-flex align-items-center justify-content-center shadow"
+                   style="width: 38px; height: 38px; cursor: pointer; transform: translate(10%, 10%);" title="Zrób zdjęcie">
               <span style="position: relative; top: -2px;">📷</span>
             </label>
-            <input type="file" id="photoUpload" class="d-none" accept="image/*" @change="handlePhotoUpload">
+            <input v-if="isMobile" type="file" id="photoCamera" class="d-none" accept="image/*" capture="environment" @change="handlePhotoUpload">
           </div>
         </div>
 
@@ -77,6 +89,8 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { db, storage } from '../firebase/config'
 import { useAuth } from '../composables/useAuth'
+
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
 const router = useRouter()
 const { user, logout } = useAuth()
@@ -134,6 +148,7 @@ const handlePhotoUpload = async (event) => {
     error.value = 'Błąd wgrywania zdjęcia: ' + err.message
   } finally {
     loading.value = false
+    event.target.value = '' // resetujemy inputa
   }
 }
 
