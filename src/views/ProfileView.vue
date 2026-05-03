@@ -168,6 +168,12 @@ const saveProfile = async () => {
     })
 
     message.value = 'Profil został pomyślnie zaktualizowany!'
+    
+    //krótka wibracja (100ms) potwierdzającą sukces
+    if (navigator.vibrate) {
+      navigator.vibrate(100)
+    }
+
     setTimeout(() => { message.value = '' }, 3000)
   } catch (err) {
     error.value = 'Nie udało się zapisać zmian: ' + err.message
