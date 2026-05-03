@@ -1,5 +1,16 @@
 <template>
   <div class="container mt-5 pt-4 form-page">
+    
+    <!-- lightbox -->
+    <div 
+      v-if="fullscreenImage" 
+      class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" 
+      style="background: rgba(0,0,0,0.85); z-index: 9999; cursor: pointer;"
+      @click="fullscreenImage = null"
+    >
+      <img :src="fullscreenImage" style="max-width: 95vw; max-height: 95vh; object-fit: contain;">
+    </div>
+
     <div class="card shadow mx-auto" style="max-width: 500px;">
       <div class="card-body p-4 p-md-5">
         <h3 class="text-center mb-4">Twój Profil</h3>
@@ -10,11 +21,12 @@
               :src="profileData.photoURL || 'https://ui-avatars.com/api/?name=' + (user?.displayName || 'User') + '&background=198754&color=fff'" 
               alt="Profilowe" 
               class="rounded-circle border border-3 border-success shadow-sm"
-              style="width: 120px; height: 120px; object-fit: cover;"
+              style="width: 120px; height: 120px; object-fit: cover; cursor: zoom-in;"
+              @click="fullscreenImage = profileData.photoURL || 'https://ui-avatars.com/api/?name=' + (user?.displayName || 'User') + '&background=198754&color=fff'"
             />
             <!-- Przycisk do zmiany zdjęcia -->
-            <label for="photoUpload" class="position-absolute bottom-0 end-0 bg-success text-white rounded-circle p-2" style="cursor: pointer; transform: translate(10%, 10%);">
-              📷
+            <label for="photoUpload" class="position-absolute bottom-0 end-0 bg-success text-white rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; cursor: pointer; transform: translate(10%, 10%);">
+              <span style="position: relative; top: -2px;">📷</span>
             </label>
             <input type="file" id="photoUpload" class="d-none" accept="image/*" @change="handlePhotoUpload">
           </div>
@@ -72,6 +84,7 @@ const { user, logout } = useAuth()
 const loading = ref(false)
 const message = ref('')
 const error = ref('')
+const fullscreenImage = ref(null) // trzyma link do powiekszonego zdjecia
 
 // Lokalne dane formularza
 const profileData = reactive({

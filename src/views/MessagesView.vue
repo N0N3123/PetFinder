@@ -1,5 +1,16 @@
 <template>
   <div class="container form-page mx-auto" style="max-width: 800px;">
+    
+    <!-- lightbox na cale okno -->
+    <div 
+      v-if="fullscreenImage" 
+      class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center" 
+      style="background: rgba(0,0,0,0.85); z-index: 9999; cursor: pointer;"
+      @click="fullscreenImage = null"
+    >
+      <img :src="fullscreenImage" style="max-width: 95vw; max-height: 95vh; object-fit: contain;">
+    </div>
+
     <!-- Lista chatow -->
     <div v-if="!activeChatId">
       <h4 class="mb-3 text-center">Wiadomości</h4>
@@ -27,10 +38,11 @@
       >
         <div class="card-body py-2 px-3 d-flex align-items-center gap-3">
           
-          <!-- Miniaturka zdjęcia zwierzaka -->
+          <!-- Miniaturka zdjęcia zwierzaka (z fullsize lightbox) -->
           <div 
             class="rounded-circle bg-light border d-flex align-items-center justify-content-center shadow-sm" 
-            style="width: 50px; height: 50px; flex-shrink: 0; overflow: hidden;"
+            style="width: 50px; height: 50px; flex-shrink: 0; overflow: hidden; cursor: zoom-in;"
+            @click.stop="chat.petPhoto ? fullscreenImage = chat.petPhoto : null"
           >
             <img v-if="chat.petPhoto" :src="chat.petPhoto" style="width: 100%; height: 100%; object-fit: cover;">
             <span v-else style="font-size: 1.5rem;">🐾</span>
@@ -39,7 +51,9 @@
           <!-- Tekst wiadomości -->
           <div class="overflow-hidden w-100">
             <div class="fw-bold text-truncate">{{ chat.petName }}</div>
-            <div class="text-muted small text-truncate">{{ chat.lastMessage || 'Brak wiadomości' }}</div>
+            <div class="text-muted small text-truncate" :class="{'fw-bold text-success': chat.lastMessage === '📷 Wysłano zdjęcie'}">
+              {{ chat.lastMessage || 'Brak wiadomości' }}
+            </div>
           </div>
           
         </div>
@@ -58,10 +72,12 @@
 
         <!-- profil użytkownika -->
         <div v-if="otherUser" class="mt-3 d-flex align-items-center bg-white p-2 rounded-3 border shadow-sm">
+          <!-- Zdjecie uzytkownika (teraz klikalne!) -->
           <img 
             :src="otherUser.photoURL || 'https://ui-avatars.com/api/?name=' + (otherUser.displayName || 'Użytkownik') + '&background=198754&color=fff'" 
             class="rounded-circle me-3 border" 
-            style="width: 50px; height: 50px; object-fit: cover;"
+            style="width: 50px; height: 50px; object-fit: cover; cursor: zoom-in;"
+            @click="fullscreenImage = otherUser.photoURL || ('https://ui-avatars.com/api/?name=' + (otherUser.displayName || 'Użytkownik') + '&background=198754&color=fff')"
           >
           <div>
             <div class="fw-bold" style="font-size: 0.95rem;">{{ otherUser.displayName || 'Użytkownik' }}</div>
@@ -73,6 +89,7 @@
         </div>
       </div>
 
+      <!-- Kontener wiadomości -->
       <div class="flex-grow-1 overflow-auto rounded p-2 mb-3 bg-light d-flex flex-column" ref="messagesContainer" style="height: 55vh; min-height: 300px;">
         <div
           v-for="msg in messages"
@@ -85,12 +102,25 @@
             style="max-width:75%"
             :class="msg.senderId === user.uid ? 'bg-success text-white' : 'bg-white border'"
           >
-            {{ msg.text }}
+            <!-- jeśli wiadomość jest zdjęciem -->
+            <div v-if="msg.imageUrl" class="mb-1" @click="fullscreenImage = msg.imageUrl" style="cursor: zoom-in;">
+              <img :src="msg.imageUrl" class="img-fluid rounded" style="max-height: 250px; object-fit: cover;">
+            </div>
+            <!-- jeśli wiadomość ma tekst -->
+            <div v-if="msg.text" :class="{'mt-2': msg.imageUrl}">{{ msg.text }}</div>
           </div>
         </div>
       </div>
 
-      <div class="d-flex gap-2">
+      <!-- Pasek wysyłania -->
+      <div class="d-flex gap-2 align-items-center">
+        <!-- Przycisk do wysyłania zdjęcia -->
+        <label for="chatImageUpload" class="btn btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center p-0 shadow-sm" style="width: 42px; height: 42px; cursor: pointer; flex-shrink: 0;">
+          <span v-if="uploadingImage" class="spinner-border spinner-border-sm text-secondary"></span>
+          <span v-else style="position: relative; top: -2px;">📷</span>
+        </label>
+        <input type="file" id="chatImageUpload" class="d-none" accept="image/*" @change="sendImage" :disabled="uploadingImage">
+
         <input
           v-model="newMessage"
           class="form-control rounded-pill px-3"
@@ -106,12 +136,13 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
-import { db } from '../firebase/config'
+import { db, storage } from '../firebase/config'
 import { useAuth } from '../composables/useAuth'
 import {
   collection, doc, getDoc, setDoc, addDoc, updateDoc,
   query, where, orderBy, onSnapshot, serverTimestamp
 } from 'firebase/firestore'
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 
 const route = useRoute()
 const { user } = useAuth()
@@ -125,10 +156,13 @@ const messagesContainer = ref(null)
 const searchChat = ref('')
 const otherUser = ref(null)
 
+const uploadingImage = ref(false)
+const fullscreenImage = ref(null) // link do fullsize zdj
+
 let unsubConversations = null
 let unsubMessages = null
 
-// Filtrowanie konwersacji
+// filtrowanie konwersacji
 const filteredConversations = computed(() => {
   if (!searchChat.value) return conversations.value
   const q = searchChat.value.toLowerCase()
@@ -185,7 +219,6 @@ async function openChat(chatId, announcementId = null, otherUid = null) {
     activePetName.value = petName
   } else {
     activePetName.value = chatSnap.data().petName
-    //UID 
     const participants = chatSnap.data().participants || []
     actualOtherUid = participants.find(uid => uid !== user.value.uid)
   }
@@ -230,6 +263,7 @@ async function sendMessage() {
     chatId: activeChatId.value,
     senderId: user.value.uid,
     text,
+    imageUrl: null,
     createdAt: serverTimestamp()
   })
 
@@ -237,6 +271,44 @@ async function sendMessage() {
     lastMessage: text,
     lastMessageAt: serverTimestamp()
   })
+}
+
+// funkcja wysylajaca zdjecie
+async function sendImage(event) {
+  const file = event.target.files[0]
+  if (!file) return
+
+  uploadingImage.value = true
+
+  try {
+    const fileExt = file.name.split('.').pop()
+    const fileName = `chat_images/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
+    const imgRef = storageRef(storage, fileName)
+    
+    await uploadBytes(imgRef, file)
+    const imageUrl = await getDownloadURL(imgRef)
+
+    // dodaje wiadomosc ze zdjeciem (bez tekstu)
+    await addDoc(collection(db, 'messages'), {
+      chatId: activeChatId.value,
+      senderId: user.value.uid,
+      text: '',
+      imageUrl: imageUrl,
+      createdAt: serverTimestamp()
+    })
+
+    // ustawia info o zdjeciu na liscie czatow
+    await updateDoc(doc(db, 'chats', activeChatId.value), {
+      lastMessage: '📷 Wysłano zdjęcie',
+      lastMessageAt: serverTimestamp()
+    })
+  } catch (err) {
+    console.error("blad wysylania:", err)
+    alert("Cos poszlo nie tak z wysylaniem fotki.")
+  } finally {
+    uploadingImage.value = false
+    event.target.value = '' // czysci inputa
+  }
 }
 
 onMounted(() => {

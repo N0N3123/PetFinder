@@ -34,7 +34,7 @@
 
           <div class="mb-3">
             <label class="form-label">Zdjęcie zwierzaka</label>
-            <input type="file" class="form-control" accept="image/*" capture="environment" @change="handleFile" required>
+            <input type="file" class="form-control" accept="image/*" @change="handleFile" required>
           </div>
 
           <div class="mb-3">
